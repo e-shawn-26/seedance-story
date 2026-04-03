@@ -53,7 +53,7 @@ export async function getTaskStatus(taskId: string): Promise<VideoTask> {
   return {
     taskId: data.id || taskId,
     status: statusMap[data.status] || "pending",
-    videoUrl: data.content?.[0]?.video_url?.url,
+    videoUrl: data.content?.video_url,
     prompt: data.input?.content?.find((c: any) => c.type === "text")?.text || "",
     createdAt: data.created_at ? new Date(data.created_at * 1000).toISOString() : null
   };
