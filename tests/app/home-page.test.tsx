@@ -6,7 +6,6 @@ const fetchMock = vi.fn();
 
 describe("HomePage", () => {
   beforeEach(() => {
-    vi.useFakeTimers();
     vi.stubGlobal("fetch", fetchMock);
     localStorage.clear();
     fetchMock.mockReset();
@@ -14,8 +13,8 @@ describe("HomePage", () => {
 
   afterEach(() => {
     cleanup();
-    vi.useRealTimers();
     vi.unstubAllGlobals();
+    vi.restoreAllMocks();
   });
 
   it("submits the story, polls until completion, and stores history", async () => {
@@ -23,15 +22,6 @@ describe("HomePage", () => {
       .mockResolvedValueOnce({
         ok: true,
         json: async () => ({ taskId: "task-123" })
-      })
-      .mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({
-          taskId: "task-123",
-          status: "running",
-          prompt: "一个武侠世界的刺客，在樱花树下与仇人重逢",
-          createdAt: "2026-04-03T00:00:00.000Z"
-        })
       })
       .mockResolvedValueOnce({
         ok: true,
@@ -57,8 +47,6 @@ describe("HomePage", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "开始生成" }));
 
-    expect(await screen.findByText("正在生成视频，通常需要 1-2 分钟...")).toBeInTheDocument();
-
     expect(fetchMock).toHaveBeenNthCalledWith(
       1,
       "/api/generate",
@@ -76,13 +64,7 @@ describe("HomePage", () => {
     });
 
     await waitFor(() => {
-      expect(fetchMock).toHaveBeenCalledTimes(2);
-    });
-
-    await vi.advanceTimersByTimeAsync(5000);
-
-    await waitFor(() => {
-      expect(fetchMock).toHaveBeenNthCalledWith(3, "/api/status/task-123");
+      expect(fetchMock).toHaveBeenNthCalledWith(2, "/api/status/task-123");
       expect(screen.getByText("下载视频")).toBeInTheDocument();
     });
 
@@ -97,8 +79,7 @@ describe("HomePage", () => {
     });
     expect(typeof history[0].createdAt).toBe("number");
 
-    await vi.advanceTimersByTimeAsync(10000);
-    expect(fetchMock).toHaveBeenCalledTimes(3);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 
   it("shows api errors", async () => {

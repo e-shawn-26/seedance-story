@@ -22,7 +22,7 @@ export function StoryGenerator() {
   const [taskId, setTaskId] = useState("");
   const [videoUrl, setVideoUrl] = useState("");
   const [error, setError] = useState("");
-  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const pollRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     return () => {
@@ -31,6 +31,24 @@ export function StoryGenerator() {
       }
     };
   }, []);
+
+  function clearPolling() {
+    if (pollRef.current) {
+      clearTimeout(pollRef.current);
+      pollRef.current = null;
+    }
+  }
+
+  function schedulePoll(id: string) {
+    clearPolling();
+    pollRef.current = setTimeout(() => {
+      void pollTask(id).catch((pollError: Error) => {
+        clearPolling();
+        setStatus("failed");
+        setError(pollError.message);
+      });
+    }, 5000);
+  }
 
   async function pollTask(id: string) {
     const response = await fetch(`/api/status/${id}`);
@@ -45,10 +63,7 @@ export function StoryGenerator() {
 
     if (task.status === "completed" && task.videoUrl) {
       setVideoUrl(task.videoUrl);
-      if (pollRef.current) {
-        clearInterval(pollRef.current);
-        pollRef.current = null;
-      }
+      clearPolling();
 
       pushHistory({
         taskId: id,
@@ -62,12 +77,12 @@ export function StoryGenerator() {
     }
 
     if (task.status === "failed") {
-      if (pollRef.current) {
-        clearInterval(pollRef.current);
-        pollRef.current = null;
-      }
+      clearPolling();
       setError("视频生成失败，请稍后重试");
+      return;
     }
+
+    schedulePoll(id);
   }
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
@@ -78,10 +93,7 @@ export function StoryGenerator() {
       return;
     }
 
-    if (pollRef.current) {
-      clearInterval(pollRef.current);
-      pollRef.current = null;
-    }
+    clearPolling();
 
     setError("");
     setVideoUrl("");
@@ -110,17 +122,6 @@ export function StoryGenerator() {
       const nextTaskId = data.taskId;
       setTaskId(nextTaskId);
       await pollTask(nextTaskId);
-
-      pollRef.current = setInterval(() => {
-        void pollTask(nextTaskId).catch((pollError: Error) => {
-          if (pollRef.current) {
-            clearInterval(pollRef.current);
-            pollRef.current = null;
-          }
-          setStatus("failed");
-          setError(pollError.message);
-        });
-      }, 5000);
     } catch (submitError) {
       setStatus("failed");
       setError(submitError instanceof Error ? submitError.message : "生成失败");
