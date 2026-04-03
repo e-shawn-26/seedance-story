@@ -3,13 +3,27 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import HomePage from "@/app/page";
 
 const fetchMock = vi.fn();
+const fileReaderReadAsDataURLMock = vi.fn();
+
+class MockFileReader {
+  result: string | ArrayBuffer | null = null;
+  onload: ((this: FileReader, ev: ProgressEvent<FileReader>) => any) | null = null;
+
+  readAsDataURL(file: Blob) {
+    fileReaderReadAsDataURLMock(file);
+    this.result = "data:image/png;base64,ZmFrZQ==";
+    this.onload?.call(this as never, {} as ProgressEvent<FileReader>);
+  }
+}
 
 describe("HomePage", () => {
   beforeEach(() => {
     vi.stubGlobal("fetch", fetchMock);
+    vi.stubGlobal("FileReader", MockFileReader);
     localStorage.clear();
     sessionStorage.clear();
     fetchMock.mockReset();
+    fileReaderReadAsDataURLMock.mockReset();
   });
 
   afterEach(() => {
@@ -42,8 +56,18 @@ describe("HomePage", () => {
     });
     fireEvent.change(screen.getByLabelText("视频比例"), { target: { value: "9:16" } });
     fireEvent.change(screen.getByLabelText("时长"), { target: { value: "10" } });
-    fireEvent.change(screen.getByLabelText("参考图片URL"), {
-      target: { value: "https://example.com/reference.png" }
+
+    const file = new File(["fake image"], "reference.png", { type: "image/png" });
+    fireEvent.change(screen.getByLabelText("上传参考图片"), {
+      target: { files: [file] }
+    });
+
+    await waitFor(() => {
+      expect(fileReaderReadAsDataURLMock).toHaveBeenCalledWith(file);
+      expect(screen.getByAltText("参考图预览")).toHaveAttribute(
+        "src",
+        "data:image/png;base64,ZmFrZQ=="
+      );
     });
 
     fireEvent.click(screen.getByRole("button", { name: "开始生成" }));
@@ -61,7 +85,7 @@ describe("HomePage", () => {
       prompt: "一个武侠世界的刺客，在樱花树下与仇人重逢",
       ratio: "9:16",
       duration: 10,
-      imageUrl: "https://example.com/reference.png"
+      imageUrl: "data:image/png;base64,ZmFrZQ=="
     });
 
     await waitFor(() => {
@@ -95,6 +119,21 @@ describe("HomePage", () => {
     fireEvent.click(screen.getByRole("button", { name: "开始生成" }));
 
     expect(await screen.findByText("Seedance 服务暂时不可用")).toBeInTheDocument();
+  });
+
+  it("shows an error when the uploaded file is larger than 5MB", async () => {
+    render(<HomePage />);
+
+    const oversizedFile = new File(["fake image"], "large.png", { type: "image/png" });
+    Object.defineProperty(oversizedFile, "size", { value: 5 * 1024 * 1024 + 1 });
+
+    fireEvent.change(screen.getByLabelText("上传参考图片"), {
+      target: { files: [oversizedFile] }
+    });
+
+    expect(await screen.findByText("参考图片不能超过 5MB")).toBeInTheDocument();
+    expect(fileReaderReadAsDataURLMock).not.toHaveBeenCalled();
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 
   it("disables the gallery entry while generating", async () => {

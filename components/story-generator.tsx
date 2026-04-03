@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
 import {
   readGenerationGuardState,
@@ -8,6 +9,8 @@ import {
 import { pushHistory } from "@/lib/history";
 
 type TaskStatus = "idle" | "pending" | "running" | "completed" | "failed";
+const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
+const SUPPORTED_IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp"];
 
 type StatusResponse = {
   taskId: string;
@@ -22,10 +25,12 @@ export function StoryGenerator() {
   const [ratio, setRatio] = useState("16:9");
   const [duration, setDuration] = useState("5");
   const [imageUrl, setImageUrl] = useState("");
+  const [imageName, setImageName] = useState("");
   const [status, setStatus] = useState<TaskStatus>("idle");
   const [taskId, setTaskId] = useState("");
   const [videoUrl, setVideoUrl] = useState("");
   const [error, setError] = useState("");
+  const [fileError, setFileError] = useState("");
   const pollRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
@@ -111,11 +116,77 @@ export function StoryGenerator() {
     schedulePoll(id);
   }
 
+  function resetImageSelection() {
+    setImageUrl("");
+    setImageName("");
+  }
+
+  function readFileAsDataUrl(file: File) {
+    return new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+
+      reader.onload = () => {
+        if (typeof reader.result === "string") {
+          resolve(reader.result);
+          return;
+        }
+
+        reject(new Error("参考图片读取失败，请重试"));
+      };
+
+      reader.onerror = () => {
+        reject(new Error("参考图片读取失败，请重试"));
+      };
+
+      reader.readAsDataURL(file);
+    });
+  }
+
+  async function handleImageChange(event: React.ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+
+    setFileError("");
+
+    if (!file) {
+      resetImageSelection();
+      return;
+    }
+
+    if (!SUPPORTED_IMAGE_TYPES.includes(file.type)) {
+      resetImageSelection();
+      event.target.value = "";
+      setFileError("参考图片仅支持 JPG、PNG 或 WEBP 格式");
+      return;
+    }
+
+    if (file.size > MAX_IMAGE_BYTES) {
+      resetImageSelection();
+      event.target.value = "";
+      setFileError("参考图片不能超过 5MB");
+      return;
+    }
+
+    try {
+      const dataUrl = await readFileAsDataUrl(file);
+      setImageUrl(dataUrl);
+      setImageName(file.name);
+    } catch (imageError) {
+      resetImageSelection();
+      event.target.value = "";
+      setFileError(imageError instanceof Error ? imageError.message : "参考图片读取失败，请重试");
+    }
+  }
+
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
     if (!prompt.trim()) {
       setError("请输入故事描述");
+      return;
+    }
+
+    if (fileError) {
+      setError(fileError);
       return;
     }
 
@@ -232,18 +303,45 @@ export function StoryGenerator() {
           </div>
 
           <div className="space-y-2">
-            <label className="text-sm font-medium text-white/90" htmlFor="imageUrl">
-              参考图片URL
+            <label className="text-sm font-medium text-white/90" htmlFor="imageFile">
+              上传参考图片
             </label>
             <input
-              id="imageUrl"
-              aria-label="参考图片URL"
-              type="url"
-              value={imageUrl}
-              onChange={(event) => setImageUrl(event.target.value)}
-              placeholder="https://example.com/reference.jpg"
-              className="w-full rounded-2xl border border-white/10 bg-slate-950/60 px-4 py-3 text-sm outline-none transition placeholder:text-white/30 focus:border-purple-400"
+              id="imageFile"
+              aria-label="上传参考图片"
+              type="file"
+              accept="image/jpeg,image/png,image/webp"
+              onChange={handleImageChange}
+              className="block w-full rounded-2xl border border-white/10 bg-slate-950/60 px-4 py-3 text-sm text-white/70 outline-none transition file:mr-4 file:rounded-xl file:border-0 file:bg-white/10 file:px-4 file:py-2 file:text-sm file:font-medium file:text-white hover:file:bg-white/15 focus:border-purple-400"
             />
+            <p className="text-xs text-white/45">支持 JPG / PNG / WEBP，大小不超过 5MB</p>
+            {imageUrl ? (
+              <div className="rounded-2xl border border-white/10 bg-black/20 p-3">
+                <div className="mb-3 flex items-center justify-between gap-3">
+                  <span className="truncate text-xs text-white/60">{imageName}</span>
+                  <button
+                    type="button"
+                    onClick={resetImageSelection}
+                    className="text-xs text-white/45 transition hover:text-white/80"
+                  >
+                    移除
+                  </button>
+                </div>
+                <Image
+                  src={imageUrl}
+                  alt="参考图预览"
+                  width={112}
+                  height={112}
+                  unoptimized
+                  className="h-28 w-28 rounded-2xl border border-white/10 object-cover"
+                />
+              </div>
+            ) : null}
+            {fileError ? (
+              <div className="rounded-2xl border border-red-400/30 bg-red-500/10 px-4 py-3 text-sm text-red-200">
+                {fileError}
+              </div>
+            ) : null}
           </div>
 
           <div className="space-y-2">

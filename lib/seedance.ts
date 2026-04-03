@@ -18,6 +18,7 @@ export async function createVideoTask(params: {
   const model = params.model || "doubao-seedance-1-5-pro-251215";
   const content: any[] = [];
   if (params.imageUrl) {
+    // Seedance accepts data URLs in image_url.url, so forward the uploaded base64 payload directly.
     content.push({ type: "image_url", image_url: { url: params.imageUrl } });
   }
   content.push({ type: "text", text: params.prompt });
