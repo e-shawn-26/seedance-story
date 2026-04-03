@@ -245,7 +245,7 @@ export function StoryGenerator() {
     <div className="grid flex-1 gap-8 lg:grid-cols-[1.1fr_0.9fr]">
       <section className="rounded-3xl border border-white/10 bg-white/5 p-6 shadow-2xl shadow-purple-950/30 backdrop-blur">
         <div className="mb-6 space-y-3">
-          <p className="text-sm uppercase tracking-[0.35em] text-purple-200/80">Seedance 1.5 Pro</p>
+          <p className="text-sm uppercase tracking-[0.35em] text-purple-200/80">Seedance 2.0</p>
           <h1 className="text-4xl font-bold leading-tight">✨ AI 短剧生成器</h1>
           <p className="max-w-2xl text-sm text-white/70">
             输入故事描述、选择比例与时长，可选参考图，提交后系统会自动轮询生成结果。

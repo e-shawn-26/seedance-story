@@ -15,7 +15,7 @@ export async function createVideoTask(params: {
   ratio?: string;
   duration?: number;
 }): Promise<{ taskId: string }> {
-  const model = params.model || "doubao-seedance-1-5-pro-251215";
+  const model = params.model || "doubao-seedance-2-0-260128";
   const content: any[] = [];
   if (params.imageUrl) {
     // Seedance accepts data URLs in image_url.url, so forward the uploaded base64 payload directly.
