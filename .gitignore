@@ -4,3 +4,4 @@ node_modules
 coverage
 *.log
 DEPLOY_URL.txt
+.vercel
