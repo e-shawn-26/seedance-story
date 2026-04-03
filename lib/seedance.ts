@@ -3,7 +3,7 @@ export interface VideoTask {
   status: "pending" | "running" | "completed" | "failed";
   videoUrl?: string;
   prompt: string;
-  createdAt: Date;
+  createdAt: string | null;
 }
 
 export async function createVideoTask(params: {
@@ -51,10 +51,10 @@ export async function getTaskStatus(taskId: string): Promise<VideoTask> {
     running: "running"
   };
   return {
-    taskId: data.id,
+    taskId: data.id || taskId,
     status: statusMap[data.status] || "pending",
     videoUrl: data.content?.[0]?.video_url?.url,
     prompt: data.input?.content?.find((c: any) => c.type === "text")?.text || "",
-    createdAt: new Date(data.created_at * 1000)
+    createdAt: data.created_at ? new Date(data.created_at * 1000).toISOString() : null
   };
 }

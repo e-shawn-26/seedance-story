@@ -1,7 +1,6 @@
-.next
-node_modules
+node_modules/
+.next/
 .env.local
-coverage
+.env*.local
 *.log
-DEPLOY_URL.txt
-.vercel
+.DS_Store

@@ -2,10 +2,10 @@ export type StoryRatio = "16:9" | "9:16" | "1:1";
 export type StoryDuration = 5 | 10;
 
 export type HistoryItem = {
-  id: string;
+  taskId: string;
   prompt: string;
   videoUrl: string;
-  createdAt: string;
+  createdAt: number | string;
   ratio: StoryRatio;
   duration: StoryDuration;
 };
@@ -41,13 +41,17 @@ export function saveHistory(items: HistoryItem[]) {
 }
 
 export function pushHistory(item: HistoryItem) {
-  const nextItems = [item, ...readHistory().filter((entry) => entry.id !== item.id)];
+  const nextItems = [
+    item,
+    ...readHistory().filter((entry) => entry.taskId !== item.taskId)
+  ];
   saveHistory(nextItems);
   return nextItems.slice(0, HISTORY_LIMIT);
 }
 
-export function formatHistoryDate(value: string) {
+export function formatHistoryDate(value: number | string) {
   return new Intl.DateTimeFormat("zh-CN", {
+    year: "numeric",
     month: "short",
     day: "numeric",
     hour: "2-digit",

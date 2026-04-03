@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { HistoryItem, formatHistoryDate, readHistory } from "@/lib/history";
 
 type GalleryGridProps = {
@@ -8,22 +8,15 @@ type GalleryGridProps = {
 };
 
 export function GalleryGrid({ items }: GalleryGridProps) {
-  const [history, setHistory] = useState<HistoryItem[]>(items ?? []);
+  const [history, setHistory] = useState<HistoryItem[]>(() => items ?? readHistory());
   const [selected, setSelected] = useState<HistoryItem | null>(null);
-
-  useEffect(() => {
-    if (items) {
-      setHistory(items);
-      return;
-    }
-
-    setHistory(readHistory());
-  }, [items]);
 
   if (history.length === 0) {
     return (
       <div className="rounded-[28px] border border-dashed border-white/15 bg-white/5 p-10 text-center text-white/60">
-        还没有生成记录，先去首页创作一条吧。
+        <a href="/" className="text-white/80 transition hover:text-white">
+          还没有作品，去生成第一个吧 →
+        </a>
       </div>
     );
   }
@@ -33,7 +26,7 @@ export function GalleryGrid({ items }: GalleryGridProps) {
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-3">
         {history.map((item) => (
           <button
-            key={item.id}
+            key={item.taskId}
             type="button"
             onClick={() => setSelected(item)}
             aria-label={item.prompt}
@@ -46,7 +39,17 @@ export function GalleryGrid({ items }: GalleryGridProps) {
             />
             <div className="space-y-1">
               <p className="line-clamp-2 text-sm font-medium text-white">{item.prompt}</p>
-              <p className="text-xs text-white/50">{formatHistoryDate(item.createdAt)}</p>
+              <div className="flex items-center justify-between gap-3">
+                <p className="text-xs text-white/50">{formatHistoryDate(item.createdAt)}</p>
+                <a
+                  href={item.videoUrl}
+                  download
+                  onClick={(event) => event.stopPropagation()}
+                  className="text-xs text-violet-200 transition hover:text-white"
+                >
+                  下载
+                </a>
+              </div>
             </div>
           </button>
         ))}
