@@ -1,7 +1,12 @@
 "use client";
 
-import { useState } from "react";
-import { HistoryItem, formatHistoryDate, readHistory } from "@/lib/history";
+import { useEffect, useState } from "react";
+import {
+  HISTORY_STORAGE_KEY,
+  HistoryItem,
+  formatHistoryDate,
+  readHistory
+} from "@/lib/history";
 
 type GalleryGridProps = {
   items?: HistoryItem[];
@@ -10,6 +15,30 @@ type GalleryGridProps = {
 export function GalleryGrid({ items }: GalleryGridProps) {
   const [history, setHistory] = useState<HistoryItem[]>(() => items ?? readHistory());
   const [selected, setSelected] = useState<HistoryItem | null>(null);
+
+  useEffect(() => {
+    if (items) {
+      setHistory(items);
+      return;
+    }
+
+    function syncHistory() {
+      setHistory(readHistory());
+    }
+
+    function handleStorage(event: StorageEvent) {
+      if (event.key === null || event.key === HISTORY_STORAGE_KEY) {
+        syncHistory();
+      }
+    }
+
+    syncHistory();
+    window.addEventListener("storage", handleStorage);
+
+    return () => {
+      window.removeEventListener("storage", handleStorage);
+    };
+  }, [items]);
 
   if (history.length === 0) {
     return (

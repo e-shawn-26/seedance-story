@@ -1,6 +1,10 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import {
+  readGenerationGuardState,
+  writeGenerationGuardState
+} from "@/lib/generation-guard";
 import { pushHistory } from "@/lib/history";
 
 type TaskStatus = "idle" | "pending" | "running" | "completed" | "failed";
@@ -25,6 +29,22 @@ export function StoryGenerator() {
   const pollRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
+    const persistedState = readGenerationGuardState();
+
+    if (persistedState.active && persistedState.taskId) {
+      setPrompt(persistedState.prompt ?? "");
+      setRatio(persistedState.ratio ?? "16:9");
+      setDuration(String(persistedState.duration ?? 5));
+      setTaskId(persistedState.taskId);
+      setStatus("running");
+      void pollTask(persistedState.taskId, persistedState).catch((pollError: Error) => {
+        clearPolling();
+        setStatus("failed");
+        setError(pollError.message);
+        writeGenerationGuardState({ active: false });
+      });
+    }
+
     return () => {
       if (pollRef.current) {
         clearInterval(pollRef.current);
@@ -46,11 +66,15 @@ export function StoryGenerator() {
         clearPolling();
         setStatus("failed");
         setError(pollError.message);
+        writeGenerationGuardState({ active: false });
       });
     }, 5000);
   }
 
-  async function pollTask(id: string) {
+  async function pollTask(
+    id: string,
+    persistedState = readGenerationGuardState()
+  ) {
     const response = await fetch(`/api/status/${id}`);
     const data = (await response.json()) as StatusResponse | { error: string };
 
@@ -64,13 +88,14 @@ export function StoryGenerator() {
     if (task.status === "completed" && task.videoUrl) {
       setVideoUrl(task.videoUrl);
       clearPolling();
+      writeGenerationGuardState({ active: false });
 
       pushHistory({
         taskId: id,
-        prompt: task.prompt || prompt,
+        prompt: task.prompt || persistedState.prompt || prompt,
         videoUrl: task.videoUrl,
-        ratio: ratio as "16:9" | "9:16" | "1:1",
-        duration: Number(duration) as 5 | 10,
+        ratio: (persistedState.ratio ?? ratio) as "16:9" | "9:16" | "1:1",
+        duration: (persistedState.duration ?? Number(duration)) as 5 | 10,
         createdAt: Date.now()
       });
       return;
@@ -79,6 +104,7 @@ export function StoryGenerator() {
     if (task.status === "failed") {
       clearPolling();
       setError("视频生成失败，请稍后重试");
+      writeGenerationGuardState({ active: false });
       return;
     }
 
@@ -99,6 +125,12 @@ export function StoryGenerator() {
     setVideoUrl("");
     setTaskId("");
     setStatus("pending");
+    writeGenerationGuardState({
+      active: true,
+      prompt: prompt.trim(),
+      ratio: ratio as "16:9" | "9:16" | "1:1",
+      duration: Number(duration) as 5 | 10
+    });
 
     try {
       const response = await fetch("/api/generate", {
@@ -121,10 +153,18 @@ export function StoryGenerator() {
 
       const nextTaskId = data.taskId;
       setTaskId(nextTaskId);
+      writeGenerationGuardState({
+        active: true,
+        taskId: nextTaskId,
+        prompt: prompt.trim(),
+        ratio: ratio as "16:9" | "9:16" | "1:1",
+        duration: Number(duration) as 5 | 10
+      });
       await pollTask(nextTaskId);
     } catch (submitError) {
       setStatus("failed");
       setError(submitError instanceof Error ? submitError.message : "生成失败");
+      writeGenerationGuardState({ active: false });
     }
   }
 
