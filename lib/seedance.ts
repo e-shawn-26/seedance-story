@@ -42,7 +42,8 @@ export async function getTaskStatus(taskId: string): Promise<VideoTask> {
   const res = await fetch(
     `https://ark.cn-beijing.volces.com/api/v3/contents/generations/tasks/${taskId}`,
     {
-      headers: { Authorization: `Bearer ${SEEDANCE_API_KEY}` }
+      headers: { Authorization: `Bearer ${SEEDANCE_API_KEY}` },
+      cache: "no-store"
     }
   );
   const data = await res.json();
