@@ -6,6 +6,8 @@ export interface VideoTask {
   createdAt: string | null;
 }
 
+const SEEDANCE_API_KEY = process.env.SEEDANCE_API_KEY || "3eb0ad82-e799-4cb8-81db-80b84a2eb5bf";
+
 export async function createVideoTask(params: {
   prompt: string;
   model?: string;
@@ -27,7 +29,7 @@ export async function createVideoTask(params: {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      Authorization: `Bearer ${process.env.SEEDANCE_API_KEY}`
+      Authorization: `Bearer ${SEEDANCE_API_KEY}`
     },
     body: JSON.stringify(body)
   });
@@ -40,7 +42,7 @@ export async function getTaskStatus(taskId: string): Promise<VideoTask> {
   const res = await fetch(
     `https://ark.cn-beijing.volces.com/api/v3/contents/generations/tasks/${taskId}`,
     {
-      headers: { Authorization: `Bearer ${process.env.SEEDANCE_API_KEY}` }
+      headers: { Authorization: `Bearer ${SEEDANCE_API_KEY}` }
     }
   );
   const data = await res.json();
